@@ -476,10 +476,11 @@ input:checked + .slider:before{transform:translateX(22px)}
                 <th>Funcionário</th>
                 <th style="text-align:center">Tem Direito</th>
                 <th style="text-align:center">Quantidade</th>
+                <th style="text-align:center">Ações</th>
               </tr>
             </thead>
             <tbody id="tb-historico">
-              <tr><td colspan="5"><div class="es"><div class="ei">📋</div><p>Nenhum histórico</p></div></td></tr>
+              <tr><td colspan="6"><div class="es"><div class="ei">📋</div><p>Nenhum histórico</p></div></td></tr>
             </tbody>
           </table>
         </div>
@@ -500,6 +501,48 @@ input:checked + .slider:before{transform:translateX(22px)}
       <button class="btn bp" onclick="executarEnvioPedido()">
         <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><polyline points="20 6 9 17 4 12"/></svg>
         Confirmar envio
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Editar Histórico -->
+<div id="modal-editar-hist" class="modal-overlay">
+  <div class="modal-box" style="max-width:460px;text-align:left">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <span style="font-size:28px">✏️</span>
+      <div>
+        <h3 style="font-size:16px;font-weight:700">Editar Registro</h3>
+        <p id="modal-edit-subtitulo" style="font-size:12px;color:var(--muted);margin:0"></p>
+      </div>
+    </div>
+    <input type="hidden" id="modal-edit-id">
+    <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:20px">
+      <div>
+        <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px">Tem Direito</label>
+        <div style="display:flex;gap:10px">
+          <label style="display:flex;align-items:center;gap:7px;cursor:pointer;padding:8px 14px;border:1.5px solid var(--border);border-radius:9px;flex:1;transition:border .2s" id="edit-sim-label">
+            <input type="radio" name="edit-direito" value="sim" onchange="onEditDireitoChange()"> 
+            <span style="font-size:13px;font-weight:600">✅ Sim</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:7px;cursor:pointer;padding:8px 14px;border:1.5px solid var(--border);border-radius:9px;flex:1;transition:border .2s" id="edit-nao-label">
+            <input type="radio" name="edit-direito" value="nao" onchange="onEditDireitoChange()"> 
+            <span style="font-size:13px;font-weight:600">❌ Não</span>
+          </label>
+        </div>
+      </div>
+      <div id="edit-qtd-wrap">
+        <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px">Quantidade</label>
+        <input type="number" id="modal-edit-qtd" min="1" max="99" value="1"
+          style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:9px;font-size:14px;font-weight:600;text-align:center;outline:none"
+          onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor=''">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn bs" onclick="fecharModalEditar()">Cancelar</button>
+      <button class="btn bp" onclick="salvarEdicaoHistorico()">
+        <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Salvar
       </button>
     </div>
   </div>
@@ -852,7 +895,7 @@ function renderHistorico(){
   if(countEl) countEl.textContent = `${dados.length} registro${dados.length!==1?'s':''}`;
 
   if(!dados.length){
-    tbody.innerHTML = `<tr><td colspan="5"><div class="es"><div class="ei">📋</div><p>Nenhum registro encontrado</p></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6"><div class="es"><div class="ei">📋</div><p>Nenhum registro encontrado</p></div></td></tr>`;
     return;
   }
 
@@ -863,7 +906,7 @@ function renderHistorico(){
   });
 
   tbody.innerHTML = dados.map(c => `
-    <tr>
+    <tr id="hist-row-${c.id}">
       <td style="font-weight:600;white-space:nowrap">
         ${MESES[c.mes]} / ${c.ano}
         ${c.pedidoEnviado ? `<br><span style="font-size:10px;font-weight:700;background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd;padding:1px 7px;border-radius:10px;">✅ Pedido enviado</span>` : ''}
@@ -874,6 +917,16 @@ function renderHistorico(){
         <span class="badge ${c.temDireito?'badge-sim':'badge-nao'}">${c.temDireito?'✅ Sim':'❌ Não'}</span>
       </td>
       <td style="text-align:center;font-weight:700">${c.temDireito?(c.quantidade||1):'—'}</td>
+      <td style="text-align:center;white-space:nowrap">
+        <button class="btn sm" style="background:#e0e7ff;color:#4f46e5;border:1px solid #c7d2fe;margin-right:4px" onclick="editarHistorico('${c.id}')" title="Editar">
+          <svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Editar
+        </button>
+        <button class="btn sm bd" onclick="excluirHistorico('${c.id}')" title="Excluir">
+          <svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+          Excluir
+        </button>
+      </td>
     </tr>
   `).join('');
 }
@@ -985,36 +1038,51 @@ async function executarEnvioPedido(){
 // ─── EXPORT PDF ───────────────────────────────────────────────────────────────
 function exportPDF(){
   const histMesFiltro = parseInt(($('hist-mes')||{}).value) || 0;
-  const mes = histMesFiltro || _refMes;
-  const ano = _refAno;
-
-  // Funcionários ativos, ordenados por empresa depois nome
-  let funcs = funcionarios.filter(f => (f.status||'ativo') !== 'inativo');
-  
-  // Filtro empresa do histórico
   const empFiltro = ($('hist-empresa')||{}).value || '';
-  if(empFiltro) funcs = funcs.filter(f => (f.empresa||'') === empFiltro);
 
-  funcs.sort((a,b)=>{
-    const ea = a.empresa||'', eb = b.empresa||'';
-    if(ea !== eb) return ea.localeCompare(eb);
-    return a.nome.localeCompare(b.nome);
-  });
+  // Filtra registros do histórico conforme filtros ativos na aba
+  let dadosHist = [...historico];
+  if(histMesFiltro) dadosHist = dadosHist.filter(c => c.mes === histMesFiltro);
+  if(empFiltro) dadosHist = dadosHist.filter(c => (c.funcEmpresa||'') === empFiltro);
+
+  if(!dadosHist.length){
+    toast('⚠️ Nenhum registro no histórico para exportar com os filtros atuais.', 'w');
+    return;
+  }
+
+  // Determina label do período para o título
+  let periodoLabel = '';
+  if(histMesFiltro){
+    // Pega todos os anos presentes nos dados filtrados
+    const anos = [...new Set(dadosHist.map(c=>c.ano))].sort();
+    periodoLabel = anos.map(a => `${MESES[histMesFiltro]} / ${a}`).join(', ');
+  } else {
+    const periodos = [...new Set(dadosHist.map(c => `${MESES[c.mes]}/${c.ano}`))].sort();
+    periodoLabel = periodos.length <= 3 ? periodos.join(', ') : `${periodos.length} períodos`;
+  }
 
   // Agrupa por empresa
   const grupos = {};
-  funcs.forEach(f=>{
-    const emp = f.empresa || '(Sem empresa)';
+  dadosHist.forEach(c => {
+    const emp = c.funcEmpresa || '(Sem empresa)';
     if(!grupos[emp]) grupos[emp] = [];
-    grupos[emp].push(f);
+    grupos[emp].push(c);
+  });
+
+  // Ordena cada grupo por período (mais recente primeiro) depois nome
+  Object.values(grupos).forEach(arr => {
+    arr.sort((a,b)=>{
+      if(a.ano !== b.ano) return b.ano - a.ano;
+      if(a.mes !== b.mes) return b.mes - a.mes;
+      return a.funcNome.localeCompare(b.funcNome);
+    });
   });
 
   const pdfWin = window.open('', '_blank', 'width=900,height=700');
-  const periodoLabel = `${MESES[mes]} / ${ano}`;
 
   let html = `<!DOCTYPE html><html lang="pt-BR"><head>
   <meta charset="UTF-8">
-  <title>Cesta Básica — ${periodoLabel}</title>
+  <title>Cesta Básica — Histórico</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#1e293b;font-size:12px}
@@ -1037,6 +1105,7 @@ function exportPDF(){
     tr:nth-child(even) td{background:#fafbfc}
     .badge-sim{background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700}
     .badge-nao{background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700}
+    .badge-periodo{background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700}
     .qty{font-weight:800;color:#4f46e5;font-size:14px}
     .footer{text-align:center;color:#94a3b8;font-size:10px;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:10px}
     @media print{
@@ -1047,14 +1116,14 @@ function exportPDF(){
   </style>
 </head><body>`;
 
-  Object.entries(grupos).forEach(([empresa, funcsEmp], idx) => {
-    const simList = funcsEmp.filter(f=>{ const c=getCesta(f.id,mes,ano); return c&&c.temDireito; });
-    const totalQtd = simList.reduce((s,f)=>{ const c=getCesta(f.id,mes,ano); return s+(c&&c.quantidade||1); },0);
+  Object.entries(grupos).forEach(([empresa, registros]) => {
+    const simList = registros.filter(c => c.temDireito);
+    const totalQtd = simList.reduce((s,c) => s+(c.quantidade||1), 0);
 
     html += `<div class="page empresa-block">
       <div class="header">
         <div class="header-left">
-          <h1>🧺 Cesta Básica</h1>
+          <h1>🧺 Cesta Básica — Histórico</h1>
           <p>Relatório de Benefícios — ${empresa}</p>
         </div>
         <div class="header-right">
@@ -1068,8 +1137,8 @@ function exportPDF(){
 
       <div class="emp-stats">
         <div class="emp-stat">
-          <span>Total funcionários</span>
-          <span>${funcsEmp.length}</span>
+          <span>Total registros</span>
+          <span>${registros.length}</span>
         </div>
         <div class="emp-stat">
           <span>Com direito</span>
@@ -1077,7 +1146,7 @@ function exportPDF(){
         </div>
         <div class="emp-stat">
           <span>Sem direito</span>
-          <span style="color:#ef4444">${funcsEmp.length - simList.length}</span>
+          <span style="color:#ef4444">${registros.length - simList.length}</span>
         </div>
         <div class="emp-stat">
           <span>Total cestas</span>
@@ -1089,22 +1158,21 @@ function exportPDF(){
         <thead>
           <tr>
             <th style="width:36px">#</th>
+            <th>Período</th>
             <th>Funcionário</th>
-            <th>Cargo / Setor</th>
             <th style="text-align:center">Tem Direito</th>
             <th style="text-align:center">Quantidade</th>
           </tr>
         </thead>
         <tbody>`;
 
-    funcsEmp.forEach((f, i) => {
-      const c = getCesta(f.id, mes, ano);
-      const temDireito = c ? c.temDireito : false;
-      const qtd = (c && c.temDireito) ? (c.quantidade||1) : 0;
+    registros.forEach((c, i) => {
+      const temDireito = c.temDireito;
+      const qtd = temDireito ? (c.quantidade||1) : 0;
       html += `<tr>
         <td style="color:#94a3b8">${i+1}</td>
-        <td><strong>${f.nome}</strong></td>
-        <td style="color:#64748b">${f.cargo||'—'}</td>
+        <td><span class="badge-periodo">${MESES[c.mes]} / ${c.ano}</span></td>
+        <td><strong>${c.funcNome}</strong></td>
         <td style="text-align:center">
           <span class="${temDireito?'badge-sim':'badge-nao'}">${temDireito?'✅ Sim':'❌ Não'}</span>
         </td>
@@ -1126,6 +1194,75 @@ function exportPDF(){
   pdfWin.document.write(html);
   pdfWin.document.close();
   setTimeout(()=>{ pdfWin.focus(); pdfWin.print(); }, 600);
+}
+
+// ─── EDITAR / EXCLUIR HISTÓRICO ───────────────────────────────────────────────
+function editarHistorico(id){
+  const reg = historico.find(c => c.id === id);
+  if(!reg) return;
+  $('modal-edit-id').value = id;
+  $('modal-edit-subtitulo').textContent = `${reg.funcNome} — ${MESES[reg.mes]} / ${reg.ano}`;
+  // Seta radio
+  const radios = document.querySelectorAll('input[name="edit-direito"]');
+  radios.forEach(r => { r.checked = (r.value === (reg.temDireito ? 'sim' : 'nao')); });
+  $('modal-edit-qtd').value = reg.quantidade || 1;
+  $('edit-qtd-wrap').style.display = reg.temDireito ? '' : 'none';
+  // Destaca label selecionado
+  onEditDireitoChange();
+  $('modal-editar-hist').classList.add('open');
+}
+
+function onEditDireitoChange(){
+  const val = document.querySelector('input[name="edit-direito"]:checked')?.value;
+  $('edit-sim-label').style.borderColor = val==='sim' ? '#6366f1' : '';
+  $('edit-sim-label').style.background  = val==='sim' ? '#ede9fe' : '';
+  $('edit-nao-label').style.borderColor = val==='nao' ? '#ef4444' : '';
+  $('edit-nao-label').style.background  = val==='nao' ? '#fee2e2' : '';
+  $('edit-qtd-wrap').style.display = val==='sim' ? '' : 'none';
+}
+
+function fecharModalEditar(){
+  $('modal-editar-hist').classList.remove('open');
+}
+
+async function salvarEdicaoHistorico(){
+  const id = $('modal-edit-id').value;
+  const idx = historico.findIndex(c => c.id === id);
+  if(idx < 0) return;
+
+  const val = document.querySelector('input[name="edit-direito"]:checked')?.value;
+  const temDireito = val === 'sim';
+  const quantidade = temDireito ? Math.max(1, parseInt($('modal-edit-qtd').value)||1) : 0;
+
+  historico[idx] = { ...historico[idx], temDireito, quantidade };
+
+  // Persiste
+  const todasCestas = [...cestas, ...historico];
+  localStorage.setItem('cb_cestas', JSON.stringify(todasCestas));
+  await fbSaveCesta(historico[idx]);
+
+  fecharModalEditar();
+  renderHistorico();
+  toast('✅ Registro atualizado com sucesso!', 'g');
+}
+
+async function excluirHistorico(id){
+  if(!confirm('Tem certeza que deseja excluir este registro do histórico?')) return;
+  const idx = historico.findIndex(c => c.id === id);
+  if(idx < 0) return;
+
+  await fbDeleteCesta(id);
+  historico.splice(idx, 1);
+
+  // Persiste
+  const todasCestas = [...cestas, ...historico];
+  localStorage.setItem('cb_cestas', JSON.stringify(todasCestas));
+
+  // Anima a linha antes de remover
+  const row = $('hist-row-' + id);
+  if(row){ row.style.transition = 'opacity .3s'; row.style.opacity = '0'; setTimeout(()=>renderHistorico(), 300); }
+  else renderHistorico();
+  toast('🗑️ Registro excluído!', 'd');
 }
 
 </script>
